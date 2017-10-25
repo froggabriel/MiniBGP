@@ -16,5 +16,7 @@ public class Router implements Runnable{
     public void run() {
         new Thread(new Server(as, 8888, routeMap)).start();
         new Thread(new Client(as, "127.0.0.1", 8889, routeMap)).start();
+        new Thread(new Server(as, 8889, routeMap)).start();
+       
     }
 }
