@@ -8,6 +8,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 
 public class Server implements Runnable{
     private String as;
@@ -29,7 +30,7 @@ public class Server implements Runnable{
     		if(m.charAt(i)=='*') {asterisco = i;}
     	}
     	//se agrega la As actual a la secuencia de As's
-    	String b = m.substring(dosp+1);   //AS#,Subred:AS#,….
+    	String b = m.substring(dosp+1);   //AS#,Subred:AS#,
     	String a = m.substring(0,dosp);  // ID*Subred:
     	String z= as +b+',';
     	z = a + z; // se une todo el msj con el As actual en el medio
@@ -38,6 +39,35 @@ public class Server implements Runnable{
         u= as + z;
     	
     	return u;
+    }
+    
+    public void addRouteMap(String s) {
+      	
+      	int asterisco =0;
+      	for(int i=0;i<=s.length();i++) {
+      		if(s.charAt(i)=='*') {asterisco = i; break;}
+      	}
+      	String nombreAs= s.substring(0,asterisco);  //solo el nombre de la AS que lo envia
+      	String resto =s.substring(asterisco+1); 
+      	String[] r = resto.split(",");
+      	ArrayList<String> rutas = new ArrayList<>();
+      	for(int i=0;i<r.length;i++) {
+      		rutas.add(r[i]);
+      	}
+      	routeMap.put(nombreAs,rutas );
+      	
+      }
+    
+    public void printRouteMap() {
+  	  Iterator it = routeMap.keySet().iterator();
+    	while(it.hasNext()){
+    	  String key = (String) it.next();
+    	 ArrayList<String> rutas = routeMap.get(key);
+    	 for(int i=0;i< rutas.size();i++) {
+    	  System.out.println("Clave: " + key + " -> Valor: " + rutas.get(i));
+    	 }
+    	}
+    	
     }
 
     @Override
@@ -65,6 +95,8 @@ public class Server implements Runnable{
             
             
             System.out.println("readline original"+entrada.readLine());
+            
+            addRouteMap(entrada.readLine());//agrega las rutas entrantes al routemap
             
            // String msjActualizado= updateMsj(entrada.readLine());
             
