@@ -176,6 +176,9 @@ public class Connection implements Runnable {
                 if (line != null) {
                     //System.out.println(line);
                     addRouteMap(line);//agrega las rutas entrantes al routemap
+                    synchronized (knownAS) {
+                        rutasConocidas();
+                    }
                 }
             }
         }
@@ -202,10 +205,8 @@ public class Connection implements Runnable {
 
             String routes = "";
             while(true) {
-                synchronized (knownAS) {
-                    rutasConocidas();
-                }
                 routes = getKnownRoutes();
+                routes = updateMsj(routes);
 
                 if(!routes.equals("")) {
                     boolean written = false;
