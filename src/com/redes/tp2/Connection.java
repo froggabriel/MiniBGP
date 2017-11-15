@@ -12,15 +12,67 @@ import java.util.HashMap;
 import java.util.Iterator;
 
 public class Connection implements Runnable {
-    protected HashMap<String, ArrayList<String>> routeMap;
-    protected HashMap<String, String> knownAS;
-    protected String as;
-    protected BufferedReader input;
-    protected DataOutputStream output;
-    protected Socket socket;
-    protected ServerSocket serverSocket;
-    protected Thread inputThread;
-    protected Thread outputThread;
+    HashMap<String, ArrayList<String>> routeMap;
+    HashMap<String, String> knownAS;
+    String as;
+    BufferedReader input;
+    DataOutputStream output;
+    Socket socket;
+    ServerSocket serverSocket;
+    Thread inputThread;
+    Thread outputThread;
+    String initalRoutes;
+
+    public void rutasConocidas() {
+        Iterator<String> it = routeMap.keySet().iterator();
+        String r = "";
+        while (it.hasNext()) {
+            String key = (String) it.next();
+            ArrayList<String> rutas = routeMap.get(key);
+            for (int i = 0; i < rutas.size(); i++) {
+                r = rutas.get(i);// substraer solo la subred
+                int dosp = 0;
+                for (int j = 0; j < r.length(); j++) {
+                    if (r.charAt(j) == ':') {
+                        dosp = j;
+                        break;
+                    }
+                }
+
+                String subred = r.substring(0, dosp); // aqui ya esta solo la subred
+                String listaAS = r.substring(dosp + 1);
+                //if (!knownAS.containsKey(r)) {
+                knownAS.put(subred, listaAS);
+            }
+        }
+    }
+
+    public int getCantAS(String s) {
+        int c = 0;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) == 'A') {
+                c++;
+            }
+        }
+        return c;
+    }
+
+    public void printRutasConocidas() {
+        Iterator<String> it = knownAS.keySet().iterator();
+        while (it.hasNext()) {
+            String key = (String) it.next();
+            System.out.println("red " + key + " ->  " + knownAS.get(key));
+        }
+    }
+
+    String getKnownRoutes() {
+        String routes = as + "*";
+        for (String key : knownAS.keySet()) {
+            routes = routes.concat(key + ":" + knownAS.get(key) + ",");
+        }
+        routes = routes.concat("\n");
+        return routes;
+    }
 
     String updateMsj(String m) {
         int dosp = 0;
@@ -32,8 +84,8 @@ public class Connection implements Runnable {
                 break;
             }
         }
-        String ast = m.substring(asterisco); //ast = del asterisco en adelante
-        String newIdAs = as + ast; //se le agrega de primero el actual as
+        String ast = m.substring(asterisco); // ast = del asterisco en adelante
+        String newIdAs = as + ast; // se le agrega de primero el actual as
 
         for (int i = 0; i < m.length(); i++) {
             if (m.charAt(i) == ':') {
@@ -42,7 +94,7 @@ public class Connection implements Runnable {
             }
         }
         String asAnteriores = m.substring(dosp + 1); // AS#,Subred:AS#,
-        //A newIdAs se le quita la parte del  resto de las As
+        // A newIdAs se le quita la parte del resto de las As
         newIdAs = newIdAs.substring(0, dosp);
         newIdAs = newIdAs + "AS" + as + ",";
         String update = newIdAs + asAnteriores;
@@ -63,14 +115,23 @@ public class Connection implements Runnable {
                 }
             }
 
-            String nombreAs = s.substring(0, asterisco); // solo el nombre de la AS que lo envia
-            String resto = s.substring(asterisco + 1);
-            String[] r = resto.split(",");
-            ArrayList<String> rutas = new ArrayList<>();
-            for (int i = 0; i < r.length; i++) {
-                rutas.add(r[i]);
+            if(asterisco < s.length() - 1) {
+
+                String nombreAs = s.substring(0, asterisco); // solo el nombre de la AS que lo envia
+                String resto = s.substring(asterisco + 1);
+                String[] r = resto.split(",");
+                ArrayList<String> rutas = new ArrayList<>();
+                for (int i = 0; i < r.length; i++) {
+                    // verificar que no hayan ciclos en las rutas
+                    String ruta = r[i];
+                    String comprobacion1 = as + "-";
+                    String comprobacion2 = "-" + as;
+                    if (!ruta.contains(comprobacion1) && !ruta.contains(comprobacion2)) {
+                        rutas.add(r[i]);
+                    }
+                }
+                routeMap.put(nombreAs, rutas);
             }
-            routeMap.put(nombreAs, rutas);
         }
 
     }
@@ -113,7 +174,7 @@ public class Connection implements Runnable {
                     }
                 }
                 if (line != null) {
-                    System.out.println("readline original" + line);
+                    //System.out.println(line);
                     addRouteMap(line);//agrega las rutas entrantes al routemap
                 }
             }
@@ -129,18 +190,36 @@ public class Connection implements Runnable {
 
         @Override
         public void run() {
+            boolean initWritten = false;
+            while(!initWritten) {
+                try {
+                    output.writeUTF(initalRoutes);
+                    initWritten = true;
+                } catch (IOException e) {
+                    initWritten = false;
+                }
+            }
+
+            String routes = "";
             while(true) {
-                String routes;
+                synchronized (knownAS) {
+                    rutasConocidas();
+                }
+                routes = getKnownRoutes();
 
-                ///TODO construir rutas
-
-                boolean written = false;
-                while (!written) {
-                    try {
-                        output.writeUTF("hola");//routes);
-                        written = true;
-                    } catch (IOException e) {
-                        written = false;
+                if(!routes.equals("")) {
+                    boolean written = false;
+                    while (!written) {
+                        try {
+                            //System.out.println("AS0*192.168.0.0:AS0-AS1-AS2\n");
+                            output.writeUTF(routes);//routes);
+                            written = true;
+                            Thread.sleep(10000);
+                        } catch (IOException e) {
+                            written = false;
+                        } catch (InterruptedException e) {
+                            System.out.println("output connection closed");
+                        }
                     }
                 }
             }

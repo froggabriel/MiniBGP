@@ -12,12 +12,13 @@ public class Client extends Connection {
     private String ip;
     private int port;
 
-    Client(String as, String ip, int port, HashMap<String, ArrayList<String>> routeMap, HashMap<String, String> knownAS) {
+    Client(String as, String ip, int port, HashMap<String, ArrayList<String>> routeMap, HashMap<String, String> knownAS, String initialRoutes) {
         this.as = as;
         this.ip = ip;
         this.port = port;
         this.routeMap = routeMap;
         this.knownAS = knownAS;
+        this.initalRoutes = initialRoutes;
     }
 
     @Override
@@ -46,7 +47,7 @@ public class Client extends Connection {
         }
 
         try {
-            Thread.sleep(30000);
+            Thread.sleep(60000);
         } catch(InterruptedException e) {
             e.printStackTrace();
         }
@@ -54,6 +55,7 @@ public class Client extends Connection {
         boolean closed = false;
         while(!closed) {
             try {
+                input.close();
                 socket.close();
                 closed = true;
             } catch(IOException e) {
